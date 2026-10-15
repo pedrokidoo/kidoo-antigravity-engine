@@ -1,0 +1,204 @@
+{
+  "name": "Kidoo Hub - Cenário 1: Inbound Landing Page (<10s) -> Antigravity -> Sheets & CRM",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null
+      },
+      "metadata": {
+        "designer": {
+          "x": -300,
+          "y": 0,
+          "name": "1. Gatilho: Webhook Formulário LP (Erick)"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "http:ActionMakeRequest",
+      "version": 3,
+      "parameters": {
+        "url": "http://localhost:8000/enriquecer-lead",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "raw",
+        "body": "{\n  \"nome_lead\": \"{{1.nome}}\",\n  \"empresa\": \"{{1.empresa}}\",\n  \"nicho\": \"{{1.nicho}}\",\n  \"faturamento\": \"{{1.faturamento}}\"\n}",
+        "parseResponse": true
+      },
+      "metadata": {
+        "designer": {
+          "x": -50,
+          "y": 0,
+          "name": "2. Antigravity: Diagnóstico C-Level & Pricing"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "json:ParseJSON",
+      "version": 1,
+      "parameters": {
+        "type": "",
+        "json": "{{2.data}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 200,
+          "y": 0,
+          "name": "3. Parse JSON Estruturado da IA"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "google-sheets:addRow",
+      "version": 2,
+      "parameters": {
+        "spreadsheetId": "1PRprGhbag7oxvoIG_zrDjXQSupadKIgBguMinkdHzrg",
+        "sheet": "LEADS_INBOUND_ENRIQUECIDOS",
+        "table": "A2:S",
+        "values": [
+          "{{formatDate(now; \"DD/MM/YYYY HH:mm\")}}",
+          "{{1.nome}}",
+          "{{1.empresa}}",
+          "{{1.nicho}}",
+          "{{1.faturamento}}",
+          "{{3.nicho_profundo}}",
+          "{{3.dor_especifica}}",
+          "{{3.solucao_arquitetada}}",
+          "{{3.precificacao_sugerida}}",
+          "{{3.gancho_vendas}}",
+          "Pedro",
+          "1 - Leads Enriquecidos",
+          "[{{formatDate(now; \"HH:mm\")}} - Lead LP]: Cadastro inicial via formulário do site.",
+          "{\"faturamento\": \"{{1.faturamento}}\", \"dor_inicial\": \"{{3.dor_especifica}}\", \"status\": \"inbound_capturado\"}",
+          "Indefinido",
+          "",
+          "",
+          "FALSE",
+          "{{now}}"
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 450,
+          "y": 0,
+          "name": "4. Google Sheets: Gravar Linha (19 Colunas)"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "metadata": {
+        "designer": {
+          "x": 700,
+          "y": 0,
+          "name": "5. Router: Triplo Disparo Simultâneo"
+        }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 6,
+              "module": "http:ActionMakeRequest",
+              "version": 3,
+              "parameters": {
+                "url": "https://api.z-api.io/instances/SUA_INSTANCIA/token/SEU_TOKEN/send-text",
+                "method": "POST",
+                "headers": [
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "bodyType": "raw",
+                "body": "{\n  \"phone\": \"{{1.whatsapp}}\",\n  \"message\": \"Olá {{1.nome}}! Aqui é o Pedro, diretor de tecnologia da KIDOO HUB.\\n\\nVi que você solicitou o diagnóstico para a *{{1.empresa}}*.\\n\\n{{3.gancho_vendas}}\"\n}",
+                "parseResponse": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 950,
+                  "y": -150,
+                  "name": "Ramo A: WhatsApp Lead (<10s)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 7,
+              "module": "http:ActionMakeRequest",
+              "version": 3,
+              "parameters": {
+                "url": "https://crm-kidoo.vercel.app/api/v1/webhooks/antigravity",
+                "method": "POST",
+                "headers": [
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "name": "x-webhook-secret",
+                    "value": "kidoo-local-webhook-secret-24"
+                  }
+                ],
+                "bodyType": "raw",
+                "body": "{\n  \"event_id\": \"ag-make-{{1.whatsapp}}-{{formatDate(now; \"X\")}}\",\n  \"event_type\": \"lead.enriched\",\n  \"company\": {\n    \"name\": \"{{1.empresa}}\",\n    \"industry\": \"{{1.nicho}}\",\n    \"estimated_monthly_revenue\": 150000\n  },\n  \"contact\": {\n    \"name\": \"{{1.nome}}\",\n    \"phone\": \"{{1.whatsapp}}\",\n    \"email\": \"{{1.email}}\"\n  },\n  \"diagnostic\": {\n    \"deep_niche\": \"{{3.nicho_profundo}}\",\n    \"specific_pain\": \"{{3.dor_especifica}}\",\n    \"proposed_solution\": \"{{3.solucao_arquitetada}}\",\n    \"suggested_setup\": 5000,\n    \"suggested_mrr\": 1800,\n    \"opening_hook\": \"{{3.gancho_vendas}}\"\n  },\n  \"source\": \"antigravity\"\n}",
+                "parseResponse": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 950,
+                  "y": 0,
+                  "name": "Ramo B: CRM Kidoo Vercel (Card Kanban)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 8,
+              "module": "http:ActionMakeRequest",
+              "version": 3,
+              "parameters": {
+                "url": "https://api.z-api.io/instances/SUA_INSTANCIA/token/SEU_TOKEN/send-text",
+                "method": "POST",
+                "headers": [
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "bodyType": "raw",
+                "body": "{\n  \"phone\": \"5531995870862\",\n  \"message\": \"🚨 *NOVO LEAD INBOUND C-LEVEL KIDOO!*\\n\\n👤 *Contato:* {{1.nome}} ({{1.whatsapp}})\\n🏢 *Empresa:* {{1.empresa}} ({{1.nicho}})\\n💰 *Faturamento:* {{1.faturamento}}\\n\\n🩸 *Gargalo Identificado:*\\n{{3.dor_especifica}}\\n\\n🧩 *Solução Caixa de Lego:*\\n{{3.solucao_arquitetada}}\\n\\n💵 *Pricing:* {{3.precificacao_sugerida}}\\n\\n🔥 *Gancho para Call:*\\n{{3.gancho_vendas}}\\n\\n👉 Card criado no CRM e registrado no Sheets!\"\n}",
+                "parseResponse": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 950,
+                  "y": 150,
+                  "name": "Ramo C: Alerta Grupo dos Sócios"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

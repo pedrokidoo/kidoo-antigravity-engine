@@ -11,7 +11,7 @@ venv/
 # Environment & Credentials (CRÍTICO: nunca subir chaves para o GitHub)
 .env
 *.json
-!blueprint_make_kidoo.json
+!blueprint_make_*.json
 service_account.json
 
 # Binários e arquivos pesados

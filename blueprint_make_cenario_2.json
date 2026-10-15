@@ -1,0 +1,319 @@
+{
+  "name": "Kidoo Hub - Cenário 2: Motor Conversacional SDR (Áudio + Memória 3 Camadas + Google Calendar)",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null
+      },
+      "metadata": {
+        "designer": {
+          "x": -400,
+          "y": 0,
+          "name": "1. Gatilho: Webhook WhatsApp Consolidado (Debounce 10s)"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "metadata": {
+        "designer": {
+          "x": -150,
+          "y": 0,
+          "name": "2. Router: Detecção de Mídia (Texto vs Áudio)"
+        }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 3,
+              "module": "http:ActionMakeRequest",
+              "version": 3,
+              "parameters": {
+                "url": "{{1.audio_url}}",
+                "method": "GET",
+                "responseType": "binary"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 100,
+                  "y": -120,
+                  "name": "Rota Áudio: Download .ogg WhatsApp"
+                }
+              }
+            },
+            {
+              "id": 4,
+              "module": "openai:createTranscription",
+              "version": 1,
+              "parameters": {
+                "file": "{{3.data}}",
+                "model": "whisper-1",
+                "language": "pt"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 350,
+                  "y": -120,
+                  "name": "Transcrição Whisper: Entonação & Texto"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 5,
+              "module": "util:SetVariable",
+              "version": 1,
+              "parameters": {
+                "name": "mensagem_lead_texto",
+                "value": "{{1.mensagem_unificada}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 100,
+                  "y": 120,
+                  "name": "Rota Texto: Captura Direta"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "google-sheets:searchRows",
+      "version": 2,
+      "parameters": {
+        "spreadsheetId": "1PRprGhbag7oxvoIG_zrDjXQSupadKIgBguMinkdHzrg",
+        "sheet": "LEADS_INBOUND_ENRIQUECIDOS",
+        "filter": "{{1.phone}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "3. Google Sheets: Resgate de Memória Viva (Row Search)"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "module": "google-calendar:getFreeBusy",
+      "version": 1,
+      "parameters": {
+        "calendarId": "primary",
+        "timeMin": "{{now}}",
+        "timeMax": "{{addDays(now; 3)}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 850,
+          "y": 0,
+          "name": "4. Google Calendar: Slots Livres Próximas 72h"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "module": "http:ActionMakeRequest",
+      "version": 3,
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=SUA_CHAVE_GEMINI_AQUI",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "raw",
+        "body": "{\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"VOCÊ É O CONSULTOR EXECUTIVO SÊNIOR DE TECNOLOGIA DA KIDOO HUB.\\n\\nMEMÓRIA DO CLIENTE:\\n- Contato: {{6.Contato}}\\n- Empresa: {{6.Empresa}}\\n- Nicho: {{6.Nicho}}\\n- Histórico de Chat Anterior:\\n{{6.HISTORICO_CHAT}}\\n- Ficha Mental JSON Atual:\\n{{6.MEMORIA_IA_JSON}}\\n\\nMENSAGEM ATUAL DO LEAD ({{if(empty(4.text); 'TEXTO'; 'ÁUDIO TRANSCRITO')}}):\\n\\\"{{if(empty(4.text); 5.mensagem_lead_texto; 4.text)}}\\\"\\n\\nSLOTS LIVRES NA AGENDA DOS SÓCIOS (PRÓXIMAS 72H):\\n{{7.freeBusy}}\\n\\nREGRAS CRÍTICAS:\\n1. Não repita perguntas já respondidas na ficha JSON.\\n2. Se for áudio, prove que ouviu citando detalhe específico.\\n3. Adapte a resposta ao perfil psicológico.\\n4. Conduza naturalmente para os 2 horários livres para uma call rápida de 15 minutos.\\n\\nRetorne JSON PURO:\\n{\\n  \\\"resposta_whatsapp\\\": \\\"texto da resposta\\\",\\n  \\\"novo_historico_chat\\\": \\\"histórico atualizado\\\",\\n  \\\"nova_memoria_json\\\": { ... },\\n  \\\"agendar_agora\\\": true/false,\\n  \\\"horario_escolhido_iso\\\": \\\"data hora ISO se confirmado\\\",\\n  \\\"email_cliente\\\": \\\"email capturado se houver\\\"\\n}\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"response_mime_type\": \"application/json\"\n  }\n}",
+        "parseResponse": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 1100,
+          "y": 0,
+          "name": "5. Gemini 1.5: Cérebro SDR C-Level com Memória"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "module": "json:ParseJSON",
+      "version": 1,
+      "parameters": {
+        "type": "",
+        "json": "{{8.data.candidates[1].content.parts[1].text}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1350,
+          "y": 0,
+          "name": "6. Parse Decisão SDR"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "metadata": {
+        "designer": {
+          "x": 1600,
+          "y": 0,
+          "name": "7. Router Decisão Final: Qualificação vs Agendamento"
+        }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 11,
+              "module": "http:ActionMakeRequest",
+              "version": 3,
+              "parameters": {
+                "url": "https://api.z-api.io/instances/SUA_INSTANCIA/token/SEU_TOKEN/send-text",
+                "method": "POST",
+                "headers": [
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "bodyType": "raw",
+                "body": "{\n  \"phone\": \"{{1.phone}}\",\n  \"message\": \"{{9.resposta_whatsapp}}\"\n}",
+                "parseResponse": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1850,
+                  "y": -120,
+                  "name": "Ramo A: Enviar Resposta Consultiva WhatsApp"
+                }
+              }
+            },
+            {
+              "id": 12,
+              "module": "google-sheets:updateRow",
+              "version": 2,
+              "parameters": {
+                "spreadsheetId": "1PRprGhbag7oxvoIG_zrDjXQSupadKIgBguMinkdHzrg",
+                "sheet": "LEADS_INBOUND_ENRIQUECIDOS",
+                "row": "{{6.rowNumber}}",
+                "values": {
+                  "HISTORICO_CHAT": "{{9.novo_historico_chat}}",
+                  "MEMORIA_IA_JSON": "{{9.nova_memoria_json}}",
+                  "Status": "2 - Abordagem C-Level",
+                  "ULTIMA_INTERACAO_TIMESTAMP": "{{now}}"
+                }
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": -120,
+                  "name": "Sheets: Atualizar Memória Viva (Status 2)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 13,
+              "module": "google-calendar:createEvent",
+              "version": 2,
+              "parameters": {
+                "calendarId": "primary",
+                "summary": "Call 15 min Kidoo Hub x {{6.Empresa}}",
+                "description": "Call de Diagnóstico e Arquitetura B2B (Value-Based Pricing).\\nContato: {{6.Contato}}\\nDor: {{6.Dor Específica (Gargalo Milionário)}}\\nSolução: {{6.Solução Arquitetada (Kidoo Solution)}}",
+                "start": "{{9.horario_escolhido_iso}}",
+                "end": "{{addMinutes(9.horario_escolhido_iso; 15)}}",
+                "conferenceData": {
+                  "createRequest": {
+                    "requestId": "{{uuid}}",
+                    "conferenceSolutionKey": {
+                      "type": "hangoutsMeet"
+                    }
+                  }
+                },
+                "attendees": [
+                  {
+                    "email": "{{9.email_cliente}}"
+                  }
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1850,
+                  "y": 120,
+                  "name": "Ramo B: Criar Google Meet no Calendar"
+                }
+              }
+            },
+            {
+              "id": 14,
+              "module": "http:ActionMakeRequest",
+              "version": 3,
+              "parameters": {
+                "url": "https://api.z-api.io/instances/SUA_INSTANCIA/token/SEU_TOKEN/send-text",
+                "method": "POST",
+                "headers": [
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "bodyType": "raw",
+                "body": "{\n  \"phone\": \"{{1.phone}}\",\n  \"message\": \"Fechado, {{6.Contato}}! Call de 15 minutos agendada com sucesso para {{formatDate(9.horario_escolhido_iso; \\\"DD/MM às HH:mm\\\")}}.\\n\\nJá reservei a sala no Google Meet para nós:\\n👉 {{13.hangoutLink}}\\n\\nEnviei o convite para o seu e-mail ({{9.email_cliente}}). Até lá!\"\n}",
+                "parseResponse": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 120,
+                  "name": "WhatsApp: Confirmação + Link Google Meet"
+                }
+              }
+            },
+            {
+              "id": 15,
+              "module": "google-sheets:updateRow",
+              "version": 2,
+              "parameters": {
+                "spreadsheetId": "1PRprGhbag7oxvoIG_zrDjXQSupadKIgBguMinkdHzrg",
+                "sheet": "LEADS_INBOUND_ENRIQUECIDOS",
+                "row": "{{6.rowNumber}}",
+                "values": {
+                  "Status": "3 - Call Agendada",
+                  "LINK_MEET": "{{13.hangoutLink}}",
+                  "DATA_HORA_CALL": "{{9.horario_escolhido_iso}}",
+                  "HISTORICO_CHAT": "{{9.novo_historico_chat}}",
+                  "MEMORIA_IA_JSON": "{{9.nova_memoria_json}}",
+                  "ULTIMA_INTERACAO_TIMESTAMP": "{{now}}"
+                }
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2350,
+                  "y": 120,
+                  "name": "Sheets: Marcar Call Agendada + Meet Link"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
