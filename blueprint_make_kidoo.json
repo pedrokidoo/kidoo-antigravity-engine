@@ -1,0 +1,104 @@
+{
+  "name": "Kidoo Hub - Consultor Hiper-Personalizado (Caixa de Lego)",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": null
+      },
+      "metadata": {
+        "designer": {
+          "x": -200,
+          "y": 0,
+          "name": "1. Gatilho: Webhook de Entrada (Novo Lead)"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "http:ActionMakeRequest",
+      "version": 3,
+      "parameters": {
+        "url": "https://api.kidoohub.com.br/enriquecer-lead",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "raw",
+        "body": "{\n  \"nome_lead\": \"{{1.nome}}\",\n  \"empresa\": \"{{1.empresa}}\",\n  \"nicho\": \"{{1.nicho}}\",\n  \"faturamento\": \"{{1.faturamento}}\"\n}",
+        "parseResponse": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 100,
+          "y": 0,
+          "name": "2. HTTP: Chamar Antigravity Engine (Caixa de Lego)"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "google-sheets:addRow",
+      "version": 2,
+      "parameters": {
+        "spreadsheetId": "COLE_O_ID_DA_SUA_PLANILHA",
+        "sheetId": "LEADS_INBOUND_ENRIQUECIDOS",
+        "values": [
+          "{{formatDate(now; \"DD/MM/YYYY HH:mm\")}}",
+          "{{1.nome}}",
+          "{{1.empresa}}",
+          "{{1.nicho}}",
+          "{{ifempty(1.faturamento; \"Não informado\")}}",
+          "{{2.data.nicho_profundo}}",
+          "{{2.data.dor_especifica}}",
+          "{{2.data.solucao_arquitetada}}",
+          "{{2.data.precificacao_sugerida}}",
+          "{{2.data.gancho_vendas}}",
+          "Pedro",
+          "Novo Lead"
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 400,
+          "y": 0,
+          "name": "3. Google Sheets: Gravar Linha Consultiva"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:ActionMakeRequest",
+      "version": 3,
+      "parameters": {
+        "url": "https://sua-instancia-evolution-api.com/message/sendText",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "apikey",
+            "value": "SUA_API_KEY_EVOLUTION"
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "raw",
+        "body": "{\n  \"number\": \"5531999999999\",\n  \"text\": \"🎯 *NOVO DIAGNÓSTICO HIPER-PERSONALIZADO KIDOO!*\\n\\n👤 *Contato:* {{1.nome}}\\n🏢 *Empresa:* {{1.empresa}} ({{1.nicho}})\\n💰 *Faturamento:* {{1.faturamento}}\\n\\n🔍 *Nicho Profundo:*\\n{{2.data.nicho_profundo}}\\n\\n🩸 *Dor Específica:*\\n{{2.data.dor_especifica}}\\n\\n🧩 *Solução Arquitetada:*\\n{{2.data.solucao_arquitetada}}\\n\\n💵 *Precificação Sugerida:*\\n{{2.data.precificacao_sugerida}}\\n\\n🔥 *Gancho de Vendas (Call 15 min):*\\n{{2.data.gancho_vendas}}\\n\\n👉 Acesse a planilha para mais detalhes!\"\n}",
+        "parseResponse": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 700,
+          "y": 0,
+          "name": "4. WhatsApp: Notificar Pedro / Arthur"
+        }
+      }
+    }
+  ]
+}

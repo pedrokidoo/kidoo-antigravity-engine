@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# Environment & Credentials (CRÍTICO: nunca subir chaves para o GitHub)
+.env
+*.json
+!blueprint_make_kidoo.json
+service_account.json
+
+# Binários e arquivos pesados
+cloudflared.exe
+*.exe
+
+# Sub-repositórios locais
+crm_kidoo_repo/
+
+# Planilhas temporárias locais
+~$*.xlsx
