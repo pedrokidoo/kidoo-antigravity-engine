@@ -23,3 +23,6 @@ crm_kidoo_repo/
 
 # Planilhas temporárias locais
 ~$*.xlsx
+
+secrets_crm/
+
